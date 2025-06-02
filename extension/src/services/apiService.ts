@@ -5,8 +5,8 @@
 // import { CodeOptimizationResponse } from "../templates/codeOptimizationResponse";
 // import { ProjectAnalysisResponse } from "../templates/projectAnalysisResponse";
 
-// const API_BASE_URL = "http://localhost:5000"; 
-// // const API_BASE_URL = "https://73aa-34-126-148-61.ngrok-free.app";
+// // const API_BASE_URL = "http://localhost:5000"; 
+// const API_BASE_URL = "https://a46e-35-199-180-54.ngrok-free.app";
 
 // export async function generateCodeFromAI(
 //     prompt: string,
@@ -79,30 +79,81 @@
 //     }
 // }
 
-// export async function analyzeCode (
-// code: string, language_id: string, p0: boolean): Promise<CodeAnalysisResponse> {
+// export async function analyzeCode(
+//     code: string, 
+//     language_id: string, 
+//     includeFixes: boolean = false
+// ): Promise<CodeAnalysisResponse> {
 //     try {
-//         console.log(`{code: ${code}, language_id: ${language_id}}`);
+//         console.log(`Analyzing code - Language: ${language_id}, Include Fixes: ${includeFixes}`);
+//         console.log(`Code length: ${code.length} characters`);
+        
+//         // Use only the /analyze endpoint for now
 //         const response = await axios.post(`${API_BASE_URL}/analyze`, {
 //             code,
-//             language_id
+//             language_id,
+//             include_fixes: includeFixes
+//         }, {
+//             headers: {
+//                 'Content-Type': 'application/json'
+//             }
 //         });
 
-//         if (!response.data || !response.data.status || response.data.status !== "success") {
-//             throw new Error(response.data?.error || "Unknown error from backend (convert)");
+//         console.log("Raw response status:", response.status);
+//         console.log("Raw response data:", JSON.stringify(response.data, null, 2));
+
+//         // More lenient response validation
+//         if (!response.data) {
+//             console.error("No response data received");
+//             return {
+//                 status: "error",
+//                 error: "No response data received from server",
+//                 analysis: "Failed to get response from server"
+//             };
 //         }
 
-//         return response.data;
+//         // If we have any data, try to work with it
+//         if (response.data.status === "success" || response.data.status === "partial_success") {
+//             return response.data;
+//         }
+
+//         // If status is not success but we have analysis data, still return it
+//         if (response.data.analysis || response.data.issues) {
+//             return {
+//                 status: "partial_success",
+//                 analysis: response.data.analysis || "Analysis completed with unexpected format",
+//                 ...response.data
+//             };
+//         }
+
+//         // If we have some response but it's not in expected format
+//         console.warn("Unexpected response format:", response.data);
+//         return {
+//             status: "partial_success",
+//             analysis: "Analysis completed with unexpected format"
+//         };
+
 //     } catch (error: any) {
-//         let errorMessage = "";
-//         if (error?.response?.data?.error) {
-//             errorMessage += `: ${error.response.data.error}`;
-//         } else if (error.message) {
-//             errorMessage += `: ${error.message}`;
+//         console.error("=== ANALYZE CODE ERROR ===");
+//         console.error("Error type:", error.constructor.name);
+//         console.error("Error message:", error.message);
+        
+//         if (error.response) {
+//             console.error("Response status:", error.response.status);
+//             console.error("Response data:", JSON.stringify(error.response.data, null, 2));
+//             console.error("Response headers:", error.response.headers);
+//         } else if (error.request) {
+//             console.error("No response received:", error.request);
+//         } else {
+//             console.error("Request setup error:", error.message);
 //         }
-
-//         // vscode.window.showErrorMessage(errorMessage);
-//         throw error;
+        
+//         // Return a structured error instead of throwing
+//         return {
+//             status: "error",
+//             error: error.message || "Unknown error occurred during analysis",
+//             analysis: `Analysis failed: ${error.message || 'Connection error'}`
+//         };
 //     }
 // }
 
@@ -123,7 +174,8 @@
 
 //         return response.data;
 //     } catch (error: any) {
-//         let errorMessage = "";
+//         console.error("Backend error (optimizeCode):", error?.response?.data || error.message);
+//         let errorMessage = "❌ Error fetching AI response for code optimization";
 //         if (error?.response?.data?.error) {
 //             errorMessage += `: ${error.response.data.error}`;
 //         } else if (error.message) {
@@ -143,7 +195,8 @@
 //         }
 //         return response.data;
 //     } catch (error: any) {
-//         let errorMessage = "Error fetching project analysis";
+//         console.error("Backend error (analyzeProject):", error?.response?.data || error.message);
+//         let errorMessage = "❌ Error fetching project analysis";
 //         if (error?.response?.data?.error) {
 //             errorMessage += `: ${error.response.data.error}`;
 //         } else if (error.message) {
@@ -177,15 +230,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
 import axios from "axios";
 import { CodeGenerationResponse } from "../templates/codeGenerationResponse";
 import { CodeConversionResponse } from "../templates/codeConversionResponse";
@@ -194,7 +238,7 @@ import { CodeOptimizationResponse } from "../templates/codeOptimizationResponse"
 import { ProjectAnalysisResponse } from "../templates/projectAnalysisResponse";
 
 // const API_BASE_URL = "http://localhost:5000"; 
-const API_BASE_URL = "https://126b-35-199-180-54.ngrok-free.app";
+const API_BASE_URL = "https://9b4b-35-240-148-142.ngrok-free.app";
 
 export async function generateCodeFromAI(
     prompt: string,
@@ -270,45 +314,111 @@ export async function convertCodeLang(
 export async function analyzeCode(
     code: string, 
     language_id: string, 
-    includeFixes: boolean = false
+    getFixes: boolean = false
 ): Promise<CodeAnalysisResponse> {
     try {
-        console.log(`{code: ${code}, language_id: ${language_id}, includeFixes: ${includeFixes}}`);
+        console.log(`Analyzing code - Language: ${language_id}, Get Fixes: ${getFixes}`);
+        console.log(`Code length: ${code.length} characters`);
         
-        // Choose the appropriate endpoint based on whether fixes are requested
-        const endpoint = includeFixes ? '/analyze-with-fixes' : '/analyze';
-        
-        const response = await axios.post(`${API_BASE_URL}${endpoint}`, {
+        const response = await axios.post(`${API_BASE_URL}/analyze`, {
             code,
             language_id,
-            include_fixes: includeFixes
+            get_fixes: getFixes
+        }, {
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
 
-        // Handle different response statuses
-        if (!response.data || !response.data.status) {
-            throw new Error(response.data?.error || "Unknown error from backend (analyze)");
+        console.log("Raw response status:", response.status);
+        console.log("Raw response data:", JSON.stringify(response.data, null, 2));
+
+        // More lenient response validation
+        if (!response.data) {
+            console.error("No response data received");
+            return {
+                status: "error",
+                error: "No response data received from server",
+                analysis: "Failed to get response from server"
+            };
         }
 
-        // Allow both "success" and "partial_success" status
-        if (response.data.status !== "success" && response.data.status !== "partial_success") {
-            throw new Error(response.data?.error || `Analysis failed with status: ${response.data.status}`);
+        // If we have any data, try to work with it
+        if (response.data.status === "success" || response.data.status === "partial_success") {
+            return response.data;
+        }
+
+        // If status is not success but we have analysis data, still return it
+        if (response.data.analysis || response.data.issues) {
+            return {
+                status: "partial_success",
+                analysis: response.data.analysis || "Analysis completed with unexpected format",
+                ...response.data
+            };
+        }
+
+        // If we have some response but it's not in expected format
+        console.warn("Unexpected response format:", response.data);
+        return {
+            status: "partial_success",
+            analysis: "Analysis completed with unexpected format"
+        };
+
+    } catch (error: any) {
+        console.error("=== ANALYZE CODE ERROR ===");
+        console.error("Error type:", error.constructor.name);
+        console.error("Error message:", error.message);
+        
+        if (error.response) {
+            console.error("Response status:", error.response.status);
+            console.error("Response data:", JSON.stringify(error.response.data, null, 2));
+            console.error("Response headers:", error.response.headers);
+        } else if (error.request) {
+            console.error("No response received:", error.request);
+        } else {
+            console.error("Request setup error:", error.message);
+        }
+        
+        // Return a structured error instead of throwing
+        return {
+            status: "error",
+            error: error.message || "Unknown error occurred during analysis",
+            analysis: `Analysis failed: ${error.message || 'Connection error'}`
+        };
+    }
+}
+
+export async function getFixesForIssues(
+    code: string,
+    issues: any[],
+    language_id: string
+): Promise<{ status: string; issues_with_fixes?: any[]; error?: string }> {
+    try {
+        console.log(`Getting fixes for ${issues.length} issues`);
+        const response = await axios.post(`${API_BASE_URL}/get-fixes`, {
+            code,
+            issues,
+            language_id
+        });
+
+        if (!response.data || !response.data.status) {
+            throw new Error(response.data?.error || "Unknown error from backend (get-fixes)");
         }
 
         return response.data;
     } catch (error: any) {
-        console.error("Backend error (analyzeCode):", error?.response?.data || error.message);
-        let errorMessage = "❌ Error fetching AI response for code analysis";
+        console.error("Backend error (getFixesForIssues):", error?.response?.data || error.message);
+        let errorMessage = "❌ Error fetching fixes for issues";
         if (error?.response?.data?.error) {
             errorMessage += `: ${error.response.data.error}`;
         } else if (error.message) {
             errorMessage += `: ${error.message}`;
         }
-
-        // Log the full error for debugging
-        console.error("Full error details:", error);
         
-        // Re-throw to be caught by the caller
-        throw error;
+        return {
+            status: "error",
+            error: errorMessage
+        };
     }
 }
 
@@ -339,6 +449,40 @@ export async function optimizeCode(
 
         // vscode.window.showErrorMessage(errorMessage);
         throw error;
+    }
+}
+
+export async function getOptimizedCode(
+    originalSnippet: string,
+    description: string,
+    language_id: string
+): Promise<{ status: string; optimized_code?: string; error?: string }> {
+    try {
+        console.log(`Getting optimized code for snippet`);
+        const response = await axios.post(`${API_BASE_URL}/get-optimized-code`, {
+            original_snippet: originalSnippet,
+            description: description,
+            language_id: language_id
+        });
+
+        if (!response.data || !response.data.status) {
+            throw new Error(response.data?.error || "Unknown error from backend (get-optimized-code)");
+        }
+
+        return response.data;
+    } catch (error: any) {
+        console.error("Backend error (getOptimizedCode):", error?.response?.data || error.message);
+        let errorMessage = "❌ Error fetching optimized code";
+        if (error?.response?.data?.error) {
+            errorMessage += `: ${error.response.data.error}`;
+        } else if (error.message) {
+            errorMessage += `: ${error.message}`;
+        }
+
+        return {
+            status: "error",
+            error: errorMessage
+        };
     }
 }
 

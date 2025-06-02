@@ -3,6 +3,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import logging
 
 MODEL_NAME = "deepseek-ai/deepseek-coder-1.3b-instruct"
+# MODEL_NAME = "deepseek-ai/deepseek-coder-6.7b-instruct"
 MAX_LENGTH = 2048
 TEMPERATURE = 0.2
 TOP_P = 0.95
