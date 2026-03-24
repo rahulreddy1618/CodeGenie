@@ -7,7 +7,7 @@ Powered by DeepSeek Coder, CodeGenie helps developers write faster, reduce error
 ---
 
 ## 🎯 Key Highlights  
-⚡ Real-time AI code generation from comments  
+⚡ Real-time AI code gen from comments  
 🧠 Context-aware intelligent suggestions  
 🔄 Code conversion between programming languages  
 🐞 Early bug and vulnerability detection  
